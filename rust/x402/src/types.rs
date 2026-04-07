@@ -1,4 +1,5 @@
 use crate::errors::{X402Error, X402Result};
+#[cfg(feature = "evm")]
 use crate::schemes::evm::network_to_chain_id;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
@@ -428,6 +429,7 @@ pub struct PaymentRequirementsV1 {
 
 impl PaymentRequirementsV1 {
     /// Converts network string to numeric chain ID if applicable.
+    #[cfg(feature = "evm")]
     pub fn u64_network(&self) -> X402Result<u64> {
         network_to_chain_id(self.network.as_str())
     }
