@@ -31,6 +31,7 @@ Framework-specific middleware for easy server integration:
 Helper modules to simplify client implementation:
 
 - **`x402::client::evm::exact`** - EVM exact payment client implementation
+- **`x402::client::svm::exact`** - SVM (Solana) exact payment client implementation (behind `svm` feature)
 - **`x402::client::http`** - HTTP client wrapper with automatic payment handling
 
 ### Mechanism Implementations (Schemes)
@@ -39,6 +40,8 @@ Payment scheme implementations:
 
 - **`x402::schemes::evm`** - Ethereum/Base exact payment using EIP-3009
   - Supports exact payment transfers for EVM-compatible chains
+- **`x402::schemes::svm`** - Solana exact payment using SPL Token / Token-2022 (behind `svm` feature)
+  - Partially-signed transfer transactions with a facilitator fee payer
 
 ## Architecture
 
@@ -191,8 +194,10 @@ x402/
 │   ├── client/             - Client implementations
 │   │   ├── client.rs       - X402Client trait
 │   │   ├── http.rs         - HTTP client wrapper
-│   │   └── evm/            - EVM client implementations
-│   │       └── exact.rs    - Exact payment client
+│   │   ├── evm/            - EVM client implementations
+│   │   │   └── exact.rs    - Exact payment client (EVM)
+│   │   └── svm/            - SVM client implementations (feature = "svm")
+│   │       └── exact.rs    - Exact payment client (SVM)
 │   │
 │   ├── server.rs           - Server traits and implementations
 │   │
@@ -205,7 +210,7 @@ x402/
 │   │
 │   └── schemes/            - Payment scheme implementations
 │       ├── evm.rs          - EVM schemes
-│       └── svm.rs          - SVM schemes (planned)
+│       └── svm.rs          - SVM schemes (feature = "svm")
 │
 ├── examples/               - Usage examples
 │   ├── buyers/             - Client examples
@@ -232,15 +237,22 @@ x402 = { version = "0.1.0", features = ["axum", "evm"] }
 - **`default`** - Enables `axum` and `evm` features
 - **`axum`** - Axum framework middleware integration
 - **`evm`** - EVM (Ethereum Virtual Machine) payment support using Alloy
+- **`svm`** - SVM (Solana) payment support using `solana-sdk`, `spl-token`, and `spl-associated-token-account`
 
 ### Feature Combinations
 
 ```toml
-# All features (default)
+# Default (axum + evm)
 x402 = "0.1.0"
 
 # Only EVM support (no framework)
 x402 = { version = "0.1.0", default-features = false, features = ["evm"] }
+
+# Only SVM support (no framework)
+x402 = { version = "0.1.0", default-features = false, features = ["svm"] }
+
+# Multi-chain: EVM + SVM with Axum middleware
+x402 = { version = "0.1.0", features = ["axum", "evm", "svm"] }
 
 # Only Axum support (framework-agnostic usage)
 x402 = { version = "0.1.0", default-features = false, features = ["axum"] }
@@ -261,16 +273,25 @@ The included EVM scheme implementation supports all EVM-compatible chains using 
 - Base Sepolia (`eip155:84532`)
 - Optimism, Arbitrum, Polygon, and more
 
+### SVM (Solana)
+
+The included SVM scheme implementation (feature `svm`) supports Solana clusters using CAIP-2 identifiers:
+- Solana Mainnet (`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`)
+- Solana Devnet (`solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1`)
+- Solana Testnet (`solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z`)
+
+Legacy aliases (`solana`, `solana-devnet`, `solana-testnet`) are normalized to the CAIP-2 form.
 
 ### Exact Payment
 
 Transfer an exact amount to access a resource:
 - **EVM**: Uses EIP-3009 `transferWithAuthorization` (USDC compatible tokens)
+- **SVM**: Uses a partially-signed SPL Token (or Token-2022) transfer transaction with the facilitator as fee payer. The payer signs `SetComputeUnitLimit` + `SetComputeUnitPrice` + `TransferChecked` (3 instructions) and leaves the fee-payer signature slot empty for the facilitator to fill in at settlement.
 
 ## Features
 
 - ✅ Protocol v2 with v1 backward compatibility
-- ✅ Multi-chain support (EVM)
+- ✅ Multi-chain support (EVM and SVM/Solana)
 - ✅ Modular architecture - use core traits directly or with helpers
 - ✅ Framework agnostic core
 - ✅ Async/await with tokio runtime
