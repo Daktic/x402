@@ -1,3 +1,4 @@
+pub mod cdp_request_hook;
 mod http;
 mod x402_facilitator;
 
